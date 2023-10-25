@@ -1,6 +1,15 @@
 # Turbit-task
 Setting up a MongoDB server on Ubuntu Machine
 
+This project involves:
+a. Setting up an ubuntu VM (e.g. with vagrant or in cloud) with a running mongo db using an ansible playbook.
+
+b. Setting up a second ubuntu VM which should regularly store backups of the mongo db in the first VM using an ansible playbook.
+
+c. Setting up a VPN server in one VM and connect to the server via the other VM
+
+# Steps Taken:
+
 Terraform is used to define AWS resources for setting up a primary and backup MongoDB server with security groups. This helps provide a consistent and reproducible infrastructure. 
 
 Ansible is then used to configure the MongoDB servers:
