@@ -1,0 +1,82 @@
+---
+- name: Install OpenVPN and Set Up OpenVPN Connection
+  hosts: db-servers
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install OpenVPN
+      apt:
+        name: openvpn
+        state: present
+
+- name: Generate OpenVPN Configuration
+  hosts: main-db
+  tasks:
+    - name: Generate Easy-RSA keys and certificates
+      command: /usr/share/easy-rsa/easyrsa build-client-full client nopass
+
+- name: Copy OpenVPN Server Configuration
+  hosts: main-db
+  tasks:
+    - name: Copy OpenVPN server configuration
+      copy:
+        src: /etc/openvpn/server.conf
+        dest: /etc/openvpn/server.conf
+        owner: root
+        group: root
+        mode: 0644
+
+- name: Copy OpenVPN Client Configuration
+  hosts: backup-db
+  tasks:
+    - name: Copy OpenVPN client configuration
+      copy:
+        src: /etc/openvpn/client/client.ovpn
+        dest: /etc/openvpn/client/client.ovpn
+        owner: root
+        group: root
+        mode: 0644
+
+- name: Forward Traffic Between VPN Clients
+  hosts: main-db
+  tasks:
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+
+    - name: Allow traffic through the firewall for OpenVPN
+      ufw:
+        rule: allow
+        port: 1194/udp
+      notify: Reload UFW
+
+- name: Start OpenVPN Service
+  hosts: db-servers
+  tasks:
+    - name: Start OpenVPN service
+      service:
+        name: openvpn
+        state: started
+        enabled: yes
+
+- name: Reload UFW
+  hosts: main-db
+  tasks:
+    - name: Reload UFW
+      service:
+        name: ufw
+        state: reloaded
+
+- name: Start OpenVPN Client
+  hosts: backup-db
+  tasks:
+    - name: Start OpenVPN service
+      service:
+        name: openvpn
+        state: started
+        enabled: yes

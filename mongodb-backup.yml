@@ -1,0 +1,35 @@
+---
+
+- name: Configure MongoDB Backup Server
+  hosts: backup-db
+  become: yes
+
+- name: Install MongoDB tools on the backup server
+  apt:
+    name: mongodb-database-tools
+    state: present
+  when: "ansible_distribution == 'Ubuntu'"
+
+- name: Create backup directory
+  file:
+    path: "{{ backup_directory }}"
+    state: directory
+
+- name: Run MongoDB backup
+  command: "mongodump --host {{ hostvars['primary_mongodb'].ansible_host }} --username {{ admin_user }} --password {{ admin_password }} --out {{ backup_directory }}"
+  args:
+    creates: "{{ backup_directory }}/dump"
+  register: mongodb_backup
+
+- name: Compress the backup
+  archive:
+    path: "{{ backup_directory }}/dump"
+    dest: "{{ backup_directory }}/mongodb_backup"
+    format: tar
+  when: mongodb_backup.changed
+
+- name: Clean up temporary backup directory
+  file:
+    path: "{{ backup_directory }}/dump"
+    state: absent
+  when: mongodb_backup.changed

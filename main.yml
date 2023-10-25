@@ -1,0 +1,7 @@
+- name: Main Ansible Playbook
+
+  roles:
+    - common
+    - main-db
+    - backup-db
+    - vpn-connection

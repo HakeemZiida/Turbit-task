@@ -1,0 +1,80 @@
+---
+
+- name: Configure MongoDB Server
+  hosts: main-db
+  remote_user: root
+  become: yes
+
+  tasks:
+    - name: Add MongoDB APT keyring
+      apt_key:
+        keyserver: keyserver.ubuntu.com
+        id: "{{ mongodb_apt_key_id }}"
+      become: yes
+
+    - name: Add MongoDB repository
+      apt_repository:
+        repo: "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongo-key.gpg] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/{{ mongodb_version }} multiverse"
+        state: present
+        update_cache: yes
+
+    - name: Update APT package cache
+      apt:
+        update_cache: yes
+
+
+    - name: Install MongoDB
+      apt:
+        name: mongodb-org
+        state: latest
+        update_cache: yes
+      notify:
+        - Start MongoDB
+
+    - name: Create MongoDB root user
+      mongodb_user:
+        login_port: "27017"
+        database: "admin"
+        name: "{{ root_user }}"
+        password: "{{ root_password }}"
+        roles: "root"
+
+    - name: Create MongoDB administrative user
+      mongodb_user:
+        login_user: "{{ root_user }}"
+        login_password: "{{ root_password }}"
+        login_port: "27017"
+        database: "{{ database_name }}"
+        name: "{{ admin_user }}"
+        password: "{{ admin_password }}"
+        roles:
+          - { db: "admin", role: "readWrite" }
+          - { db: "{{ database_name }}", role: "readWrite" }
+
+
+    - name: Enable remote connections in MongoDB
+      lineinfile:
+        path: /etc/mongod.conf
+        regexp: '^ *bindIp:.*'
+        line: '  bindIp: 0.0.0.0'
+        state: present
+        backup: yes
+      notify:
+        - Restart MongoDB Service
+
+    - name: Enable authentication in MongoDB
+      lineinfile:
+        path: /etc/mongod.conf
+        line: "security:\n  authorization: enabled"
+        insertafter: "^#security:"
+        state: present
+        backup: yes
+      notify: 
+        - Restart MongoDB Service
+
+
+  handlers:
+    - name: Start MongoDB
+      service:
+        name: mongod
+        state: started
